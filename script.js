@@ -16,7 +16,7 @@ canvas.width = 420;
 canvas.height = 260;
 
 //Safe Zone (text allowed area)
-// Defined in canvas-coordinate space
+
 const SAFE = { left: 20, right: 400, top: 110, bottom: 245 };
 
 // Default position as % within the safe zone (0–100)
@@ -177,7 +177,7 @@ function drawCard(name) {
   // Center the text on cx, baseline at cy
   const textX = cx - textWidth / 2;
 
-  // Draw "CARDHOLDER NAME" label just above the name (12 px above baseline)
+  // Draw "CARDHOLDER NAME" label just above the name
   ctx.fillStyle = selectedFontColor;
   ctx.globalAlpha = 1;
   ctx.font = `12px ${selectedFontFamily}`;
@@ -246,7 +246,7 @@ function eventToCanvas(e) {
   };
 }
 
-// Check whether a point (canvas-px) is near the current name text
+// Check whether a point is near the current name text
 function isNearName(cx_hit, cy_hit) {
   const { displayName, fontSize, textWidth } = getNameLayout(
     input.value,
@@ -315,7 +315,6 @@ function endDrag() {
   }
 }
 
-// Hover cursor feedback
 canvas.addEventListener("mousemove", (e) => {
   if (isDragging) {
     moveDrag(e);
@@ -376,6 +375,6 @@ resetBtn.addEventListener("click", () => {
   syncSliders();
   redraw();
 });
-// Init
+
 syncSliders();
 drawCard("");
