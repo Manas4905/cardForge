@@ -16,11 +16,10 @@ canvas.width = 420;
 canvas.height = 260;
 
 //Safe Zone (text allowed area)
-
 const SAFE = { left: 20, right: 400, top: 110, bottom: 245 };
 
 // Default position as % within the safe zone (0–100)
-const DEFAULT = { x: 50, y: 85 };
+const DEFAULT = { x: 20, y: 85 };
 
 // Current position state (%)
 let pos = { x: DEFAULT.x, y: DEFAULT.y };
