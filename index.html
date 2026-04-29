@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CardForge</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="app-header">
+        <h1>CardForge</h1>
+      </header>
+
+      <main class="app-layout">
+        <section class="controls-panel">
+          <div class="controls">
+            <div class="field">
+              <label for="nameInput">Card Name</label>
+              <input
+                id="nameInput"
+                type="text"
+                placeholder="Enter your name"
+                maxlength="24"
+              />
+            </div>
+
+            <div class="field">
+              <label for="fontSelect">Font Style</label>
+              <select id="fontSelect">
+                <option value="sans-serif">Modern Sans</option>
+                <option value="serif">Classic Serif</option>
+                <option value="monospace">Tech Mono</option>
+                <option value='"Trebuchet MS", sans-serif'>
+                  Rounded Clean
+                </option>
+              </select>
+            </div>
+
+            <div class="field">
+              <label for="fontColorSelect">Font Color</label>
+              <select id="fontColorSelect">
+                <option value="#ffffff">White</option>
+                <option value="#111827">Black</option>
+                <option value="#0f172a">Navy</option>
+                <option value="#fbbf24">Gold</option>
+                <option value="#ec4899">Pink</option>
+              </select>
+            </div>
+
+            <div class="field">
+              <span class="field-label">Card Background</span>
+              <div
+                class="color-picker"
+                id="bgPicker"
+                role="listbox"
+                aria-label="Card background colors"
+              >
+                <button
+                  type="button"
+                  class="color-swatch active"
+                  data-bg="blue"
+                  aria-label="Blue background"
+                ></button>
+                <button
+                  type="button"
+                  class="color-swatch"
+                  data-bg="red"
+                  aria-label="Red background"
+                ></button>
+                <button
+                  type="button"
+                  class="color-swatch"
+                  data-bg="yellow"
+                  aria-label="Yellow background"
+                ></button>
+                <button
+                  type="button"
+                  class="color-swatch"
+                  data-bg="green"
+                  aria-label="Green background"
+                ></button>
+                <button
+                  type="button"
+                  class="color-swatch"
+                  data-bg="black"
+                  aria-label="Black background"
+                ></button>
+              </div>
+            </div>
+
+            <div class="position-controls">
+              <div class="pos-header">
+                <span class="pos-label">Name Position</span>
+                <button class="reset-btn" id="resetPos" type="button">
+                  Reset
+                </button>
+              </div>
+              <div class="slider-row">
+                <label for="sliderX">X</label>
+                <input type="range" id="sliderX" min="0" max="100" value="50" />
+                <span class="slider-val" id="valX">50</span>
+              </div>
+              <div class="slider-row">
+                <label for="sliderY">Y</label>
+                <input type="range" id="sliderY" min="0" max="100" value="85" />
+                <span class="slider-val" id="valY">85</span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="preview-panel">
+          <div class="card-wrap">
+            <canvas id="card"></canvas>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <script src="script.js"></script>
+  </body>
+</html>
