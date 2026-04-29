@@ -34,7 +34,7 @@ const BG_COLORS = {
   red: ["#dc2626", "#7f1d1d"],
   yellow: ["#f4b400", "#a16207"],
   green: ["#16a34a", "#14532d"],
-  black: ["#111827", "#000000"],
+  black: ["#1b222fe6", "#000000"],
 };
 
 // Convert % → canvas px within the safe zone
