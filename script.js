@@ -1,5 +1,5 @@
-const canvas = document.getElementById("card");
-const ctx = canvas.getContext("2d");
+const SVG_NS = "http://www.w3.org/2000/svg";
+const card = document.getElementById("card");
 const input = document.getElementById("nameInput");
 const fontSelect = document.getElementById("fontSelect");
 const fontColorSelect = document.getElementById("fontColorSelect");
@@ -11,20 +11,19 @@ const valY = document.getElementById("valY");
 const resetBtn = document.getElementById("resetPos");
 const bgButtons = Array.from(document.querySelectorAll(".color-swatch"));
 
-// Internal canvas resolution (aspect ratio 420×260)
-canvas.width = 420;
-canvas.height = 260;
+const VIEWBOX = { width: 420, height: 260 };
 
-//Safe Zone (text allowed area)
+// Safe zone where the cardholder name can move.
 const SAFE = { left: 20, right: 400, top: 110, bottom: 245 };
 
-// Default position as % within the safe zone (0–100)
+// Default position as % within the safe zone (0-100).
 const DEFAULT = { x: 20, y: 85 };
 
-// Current position state (%)
+// Current position state (%).
 let pos = { x: DEFAULT.x, y: DEFAULT.y };
 
-let selectedBg = "Blue";
+let selectedBg = bgButtons.find((button) => button.classList.contains("active"))
+  ?.dataset.bg || "blue";
 let selectedFontFamily = fontSelect.value;
 let selectedFontColor = fontColorSelect.value;
 
@@ -36,14 +35,46 @@ const BG_COLORS = {
   black: ["#1b222fe6", "#000000"],
 };
 
-// Convert % → canvas px within the safe zone
+const measurerSvg = document.createElementNS(SVG_NS, "svg");
+measurerSvg.setAttribute("aria-hidden", "true");
+measurerSvg.setAttribute("focusable", "false");
+measurerSvg.style.position = "absolute";
+measurerSvg.style.left = "-9999px";
+measurerSvg.style.top = "-9999px";
+measurerSvg.style.width = "1000px";
+measurerSvg.style.height = "200px";
+measurerSvg.style.visibility = "hidden";
+measurerSvg.style.overflow = "hidden";
+
+const measurerText = document.createElementNS(SVG_NS, "text");
+measurerSvg.appendChild(measurerText);
+document.body.appendChild(measurerSvg);
+
+function escapeXml(value) {
+  return String(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&apos;");
+}
+
+function measureTextWidth(text, fontFamily, fontSize, fontWeight = "400") {
+  measurerText.setAttribute("font-family", fontFamily);
+  measurerText.setAttribute("font-size", String(fontSize));
+  measurerText.setAttribute("font-weight", fontWeight);
+  measurerText.textContent = text;
+  return measurerText.getComputedTextLength();
+}
+
+// Convert % -> SVG px within the safe zone.
 function pctToCanvas(px_pct, py_pct) {
   const cx = SAFE.left + (px_pct / 100) * (SAFE.right - SAFE.left);
   const cy = SAFE.top + (py_pct / 100) * (SAFE.bottom - SAFE.top);
   return { cx, cy };
 }
 
-// Convert canvas px → % within the safe zone
+// Convert SVG px -> % within the safe zone.
 function canvasToPct(cx, cy) {
   const px_pct = ((cx - SAFE.left) / (SAFE.right - SAFE.left)) * 100;
   const py_pct = ((cy - SAFE.top) / (SAFE.bottom - SAFE.top)) * 100;
@@ -58,16 +89,15 @@ function getNameLayout(name, fontFamily = selectedFontFamily) {
 
   // Shrink only as much as needed so the full name fits inside the safe zone.
   let fontSize = 26;
-  ctx.font = `bold ${fontSize}px ${fontFamily}`;
   while (
-    ctx.measureText(displayName).width > SAFE.right - SAFE.left - 20 &&
+    measureTextWidth(displayName, fontFamily, fontSize, "700") >
+      SAFE.right - SAFE.left - 20 &&
     fontSize > 14
   ) {
     fontSize -= 1;
-    ctx.font = `bold ${fontSize}px ${fontFamily}`;
   }
 
-  const textWidth = ctx.measureText(displayName).width;
+  const textWidth = measureTextWidth(displayName, fontFamily, fontSize, "700");
   return { displayName, fontSize, textWidth };
 }
 
@@ -93,78 +123,19 @@ function clampNameCenter(cx, cy, textWidth, fontSize, labelFontSize = 12) {
 }
 
 function drawCard(name) {
-  const W = canvas.width;
-  const H = canvas.height;
-
-  ctx.clearRect(0, 0, W, H);
-
-  const bg = ctx.createLinearGradient(0, 0, W, H);
   const [bgStart, bgEnd] = BG_COLORS[selectedBg] || BG_COLORS.blue;
-  bg.addColorStop(0, bgStart);
-  bg.addColorStop(1, bgEnd);
-  roundRect(0, 0, W, H, 16);
-  ctx.fillStyle = bg;
-  ctx.fill();
-
-  // Safe-zone guide (only visible while dragging)
-  if (isDragging) {
-    ctx.save();
-    ctx.strokeStyle = "rgba(255,255,255,0.25)";
-    ctx.lineWidth = 1;
-    ctx.setLineDash([4, 4]);
-    ctx.strokeRect(
-      SAFE.left,
-      SAFE.top,
-      SAFE.right - SAFE.left,
-      SAFE.bottom - SAFE.top,
-    );
-    ctx.restore();
-  }
-
-  // Card label (top-left)
-  ctx.fillStyle = selectedFontColor;
-  ctx.globalAlpha = 1;
-  ctx.font = `bold 13px ${selectedFontFamily}`;
-  ctx.fillText("SMART CARD", 25, 35);
-  ctx.globalAlpha = 1;
-
-  // Chip body
-  ctx.fillStyle = "#d4af37";
-  roundRect(25, 55, 40, 30, 4);
-  ctx.fill();
-
-  // Chip lines
-  ctx.strokeStyle = "rgba(120,90,20,0.6)";
-  ctx.lineWidth = 1;
-
-  ctx.beginPath();
-  ctx.moveTo(45, 56);
-  ctx.lineTo(45, 84);
-  ctx.stroke();
-
-  ctx.beginPath();
-  ctx.moveTo(24, 62);
-  ctx.lineTo(65, 62);
-  ctx.moveTo(24, 70);
-  ctx.lineTo(65, 70);
-  ctx.moveTo(24, 78);
-  ctx.lineTo(65, 78);
-  ctx.stroke();
-
-  // CARDHOLDER NAME label
-  ctx.fillStyle = selectedFontColor;
-  ctx.globalAlpha = 1;
-  ctx.font = `12px ${selectedFontFamily}`;
 
   const { displayName, fontSize, textWidth } = getNameLayout(
     name,
     selectedFontFamily,
   );
-  ctx.font = `12px ${selectedFontFamily}`;
-  const labelWidth = ctx.measureText("CARDHOLDER NAME:").width;
+  const labelWidth = measureTextWidth(
+    "CARDHOLDER NAME:",
+    selectedFontFamily,
+    12,
+    "400",
+  );
   const blockWidth = Math.max(textWidth, labelWidth);
-
-  // Resolve canvas position from current %
   const rawPos = pctToCanvas(pos.x, pos.y);
   const { cx, cy } = clampNameCenter(
     rawPos.cx,
@@ -172,51 +143,43 @@ function drawCard(name) {
     blockWidth,
     fontSize,
   );
-
-  // Center the text on cx, baseline at cy
   const textX = cx - textWidth / 2;
+  const labelY = cy - fontSize - 2;
+  const highlightX = textX - 4;
+  const highlightY = cy - fontSize - 4;
+  const highlightW = textWidth + 8;
+  const highlightH = fontSize + 8;
 
-  // Draw "CARDHOLDER NAME" label just above the name
-  ctx.fillStyle = selectedFontColor;
-  ctx.globalAlpha = 1;
-  ctx.font = `12px ${selectedFontFamily}`;
-  ctx.fillText("CARDHOLDER NAME:", textX, cy - fontSize - 2);
-  ctx.globalAlpha = 1;
-
-  // Draw the name
-  ctx.fillStyle = selectedFontColor;
-  ctx.globalAlpha = name.trim() ? 1 : 0.3;
-  ctx.font = `bold ${fontSize}px ${selectedFontFamily}`;
-  ctx.fillText(displayName, textX, cy);
-  ctx.globalAlpha = 1;
-
-  // Hit-target highlight when dragging
-  if (isDragging) {
-    ctx.save();
-    ctx.strokeStyle = "rgba(255,255,255,0.55)";
-    ctx.lineWidth = 1.5;
-    ctx.setLineDash([3, 3]);
-    ctx.strokeRect(textX - 4, cy - fontSize - 4, textWidth + 8, fontSize + 8);
-    ctx.restore();
-  }
+  card.innerHTML = `
+    <defs>
+      <linearGradient id="cardGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stop-color="${bgStart}"></stop>
+        <stop offset="100%" stop-color="${bgEnd}"></stop>
+      </linearGradient>
+    </defs>
+    <rect x="0" y="0" width="${VIEWBOX.width}" height="${VIEWBOX.height}" rx="16" fill="url(#cardGradient)"></rect>
+    ${
+      isDragging
+        ? `<rect x="${SAFE.left}" y="${SAFE.top}" width="${SAFE.right - SAFE.left}" height="${SAFE.bottom - SAFE.top}" fill="none" stroke="#ffffff" stroke-opacity="0.25" stroke-width="1" stroke-dasharray="4 4"></rect>`
+        : ""
+    }
+    <text x="25" y="35" fill="${selectedFontColor}" font-family="${escapeXml(selectedFontFamily)}" font-size="13" font-weight="700">SMART CARD</text>
+    <rect x="25" y="55" width="40" height="30" rx="4" fill="#d4af37"></rect>
+    <line x1="45" y1="56" x2="45" y2="84" stroke="#785a14" stroke-opacity="0.6" stroke-width="1"></line>
+    <line x1="24" y1="62" x2="65" y2="62" stroke="#785a14" stroke-opacity="0.6" stroke-width="1"></line>
+    <line x1="24" y1="70" x2="65" y2="70" stroke="#785a14" stroke-opacity="0.6" stroke-width="1"></line>
+    <line x1="24" y1="78" x2="65" y2="78" stroke="#785a14" stroke-opacity="0.6" stroke-width="1"></line>
+    <text x="${textX}" y="${labelY}" fill="${selectedFontColor}" font-family="${escapeXml(selectedFontFamily)}" font-size="12" font-weight="400">CARDHOLDER NAME:</text>
+    <text x="${textX}" y="${cy}" fill="${selectedFontColor}" opacity="${name.trim() ? 1 : 0.3}" font-family="${escapeXml(selectedFontFamily)}" font-size="${fontSize}" font-weight="700">${escapeXml(displayName)}</text>
+    ${
+      isDragging
+        ? `<rect x="${highlightX}" y="${highlightY}" width="${highlightW}" height="${highlightH}" fill="none" stroke="#ffffff" stroke-opacity="0.55" stroke-width="1.5" stroke-dasharray="3 3"></rect>`
+        : ""
+    }
+  `;
 }
 
-//Rounded rect helper
-function roundRect(x, y, w, h, r) {
-  ctx.beginPath();
-  ctx.moveTo(x + r, y);
-  ctx.lineTo(x + w - r, y);
-  ctx.quadraticCurveTo(x + w, y, x + w, y + r);
-  ctx.lineTo(x + w, y + h - r);
-  ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
-  ctx.lineTo(x + r, y + h);
-  ctx.quadraticCurveTo(x, y + h, x, y + h - r);
-  ctx.lineTo(x, y + r);
-  ctx.quadraticCurveTo(x, y, x + r, y);
-  ctx.closePath();
-}
-
-//Sync sliders ↔ pos
+// Sync sliders <-> pos.
 function syncSliders() {
   sliderX.value = Math.round(pos.x);
   sliderY.value = Math.round(pos.y);
@@ -228,15 +191,15 @@ function redraw() {
   drawCard(input.value);
 }
 
-//Drag & Drop
+// Drag & Drop.
 let isDragging = false;
 let dragOffset = { dx: 0, dy: 0 };
 
-// Convert mouse/touch event → canvas-space coordinates
+// Convert mouse/touch event -> SVG-space coordinates.
 function eventToCanvas(e) {
-  const rect = canvas.getBoundingClientRect();
-  const scaleX = canvas.width / rect.width;
-  const scaleY = canvas.height / rect.height;
+  const rect = card.getBoundingClientRect();
+  const scaleX = VIEWBOX.width / rect.width;
+  const scaleY = VIEWBOX.height / rect.height;
   const clientX = e.touches ? e.touches[0].clientX : e.clientX;
   const clientY = e.touches ? e.touches[0].clientY : e.clientY;
   return {
@@ -245,14 +208,18 @@ function eventToCanvas(e) {
   };
 }
 
-// Check whether a point is near the current name text
+// Check whether a point is near the current name text.
 function isNearName(cx_hit, cy_hit) {
-  const { displayName, fontSize, textWidth } = getNameLayout(
+  const { fontSize, textWidth } = getNameLayout(
     input.value,
     selectedFontFamily,
   );
-  ctx.font = `12px ${selectedFontFamily}`;
-  const labelWidth = ctx.measureText("CARDHOLDER NAME:").width;
+  const labelWidth = measureTextWidth(
+    "CARDHOLDER NAME:",
+    selectedFontFamily,
+    12,
+    "400",
+  );
   const blockWidth = Math.max(textWidth, labelWidth);
   const rawPos = pctToCanvas(pos.x, pos.y);
   const { cx, cy } = clampNameCenter(
@@ -280,8 +247,9 @@ function startDrag(e) {
     isDragging = true;
     const { cx, cy } = pctToCanvas(pos.x, pos.y);
     dragOffset = { dx: x - cx, dy: y - cy };
-    canvas.style.cursor = "grabbing";
+    card.style.cursor = "grabbing";
     e.preventDefault();
+    redraw();
   }
 }
 
@@ -294,8 +262,12 @@ function moveDrag(e) {
     input.value,
     selectedFontFamily,
   );
-  ctx.font = `12px ${selectedFontFamily}`;
-  const labelWidth = ctx.measureText("CARDHOLDER NAME:").width;
+  const labelWidth = measureTextWidth(
+    "CARDHOLDER NAME:",
+    selectedFontFamily,
+    12,
+    "400",
+  );
   const blockWidth = Math.max(textWidth, labelWidth);
   const { cx, cy } = clampNameCenter(rawCx, rawCy, blockWidth, fontSize);
   const newPct = canvasToPct(cx, cy);
@@ -309,30 +281,29 @@ function moveDrag(e) {
 function endDrag() {
   if (isDragging) {
     isDragging = false;
-    canvas.style.cursor = "default";
-    redraw(); // remove dashed border
+    card.style.cursor = "default";
+    redraw();
   }
 }
 
-canvas.addEventListener("mousemove", (e) => {
+card.addEventListener("mousemove", (e) => {
   if (isDragging) {
     moveDrag(e);
     return;
   }
   const { x, y } = eventToCanvas(e);
-  canvas.style.cursor = isNearName(x, y) ? "grab" : "default";
+  card.style.cursor = isNearName(x, y) ? "grab" : "default";
 });
 
-canvas.addEventListener("mousedown", startDrag);
-canvas.addEventListener("mouseup", endDrag);
-canvas.addEventListener("mouseleave", endDrag);
+card.addEventListener("mousedown", startDrag);
+card.addEventListener("mouseup", endDrag);
+card.addEventListener("mouseleave", endDrag);
 
-// Touch
-canvas.addEventListener("touchstart", startDrag, { passive: false });
-canvas.addEventListener("touchmove", moveDrag, { passive: false });
-canvas.addEventListener("touchend", endDrag);
+// Touch.
+card.addEventListener("touchstart", startDrag, { passive: false });
+card.addEventListener("touchmove", moveDrag, { passive: false });
+card.addEventListener("touchend", endDrag);
 
-// slider listeners
 input.addEventListener("input", redraw);
 
 fontSelect.addEventListener("change", () => {
@@ -367,7 +338,7 @@ sliderY.addEventListener("input", () => {
   redraw();
 });
 
-// Reset
+// Reset.
 resetBtn.addEventListener("click", () => {
   pos.x = DEFAULT.x;
   pos.y = DEFAULT.y;

@@ -61,7 +61,7 @@ h1 {
   position: relative;
 }
 
-.card-wrap canvas {
+.card-wrap svg {
   display: block;
   width: 100%;
   height: auto;
@@ -70,6 +70,7 @@ h1 {
   -webkit-user-select: none;
   border-radius: 18px;
   box-shadow: 0 18px 50px rgba(15, 23, 42, 0.2);
+  touch-action: none;
 }
 
 .controls {
