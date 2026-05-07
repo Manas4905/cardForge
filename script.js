@@ -17,6 +17,7 @@ const LABEL_GAP = 2;
 const BLOCK_PADDING_X = 3;
 const BLOCK_PADDING_Y = 3;
 const HIT_PADDING = 10;
+const TOUCH_HIT_PADDING = 28;
 
 // Safe zone where the cardholder name can move.
 const SAFE = { left: 20, right: 400, top: 110, bottom: 245 };
@@ -325,24 +326,45 @@ function isNearName(cx_hit, cy_hit) {
   );
 }
 
+function isTouchPointer(e) {
+  return e.pointerType === "touch" || e.pointerType === "pen";
+}
+
 function startDrag(e) {
   const { x, y } = eventToCanvas(e);
-  if (isNearName(x, y)) {
-    isDragging = true;
-    const { left, baseline } = getNameBlockFromState(
-      input.value,
-      selectedFontFamily,
-      pos,
-    );
-    dragOffset = { dx: x - left, dy: y - baseline };
-    card.style.cursor = "grabbing";
-    e.preventDefault();
-    redraw();
+  const hitPadding = isTouchPointer(e) ? TOUCH_HIT_PADDING : HIT_PADDING;
+  const { left, blockWidth, labelY, baseline } = getNameBlockFromState(
+    input.value,
+    selectedFontFamily,
+    pos,
+  );
+  const hitLeft = left - hitPadding;
+  const hitRight = left + blockWidth + hitPadding;
+  const hitTop = labelY - LABEL_FONT_SIZE - hitPadding;
+  const hitBottom = baseline + hitPadding;
+  const isHit =
+    x >= hitLeft && x <= hitRight && y >= hitTop && y <= hitBottom;
+
+  if (!isHit) return;
+
+  isDragging = true;
+  dragOffset = { dx: x - left, dy: y - baseline };
+  card.style.cursor = "grabbing";
+  if (card.setPointerCapture && e.pointerId != null) {
+    card.setPointerCapture(e.pointerId);
   }
+  e.preventDefault();
+  redraw();
 }
 
 function moveDrag(e) {
-  if (!isDragging) return;
+  if (!isDragging) {
+    if (!isTouchPointer(e)) {
+      const { x, y } = eventToCanvas(e);
+      card.style.cursor = isNearName(x, y) ? "grab" : "default";
+    }
+    return;
+  }
   const { x, y } = eventToCanvas(e);
   const rawLeft = x - dragOffset.dx;
   const rawBaseline = y - dragOffset.dy;
@@ -369,31 +391,31 @@ function moveDrag(e) {
   e.preventDefault();
 }
 
-function endDrag() {
+function endDrag(e) {
   if (isDragging) {
     isDragging = false;
     card.style.cursor = "default";
+    if (card.releasePointerCapture && e?.pointerId != null) {
+      try {
+        card.releasePointerCapture(e.pointerId);
+      } catch {
+        // Ignore capture release errors if the browser already cleared it.
+      }
+    }
     redraw();
   }
 }
 
-card.addEventListener("mousemove", (e) => {
-  if (isDragging) {
-    moveDrag(e);
-    return;
+card.addEventListener("pointerdown", startDrag);
+card.addEventListener("pointermove", moveDrag);
+card.addEventListener("pointerup", endDrag);
+card.addEventListener("pointercancel", endDrag);
+card.addEventListener("pointerleave", (e) => {
+  if (!isDragging && e.pointerType === "mouse") {
+    card.style.cursor = "default";
   }
-  const { x, y } = eventToCanvas(e);
-  card.style.cursor = isNearName(x, y) ? "grab" : "default";
+  endDrag(e);
 });
-
-card.addEventListener("mousedown", startDrag);
-card.addEventListener("mouseup", endDrag);
-card.addEventListener("mouseleave", endDrag);
-
-// Touch.
-card.addEventListener("touchstart", startDrag, { passive: false });
-card.addEventListener("touchmove", moveDrag, { passive: false });
-card.addEventListener("touchend", endDrag);
 
 input.addEventListener("input", redraw);
 
