@@ -9,6 +9,7 @@ const sliderY = document.getElementById("sliderY");
 const valX = document.getElementById("valX");
 const valY = document.getElementById("valY");
 const resetBtn = document.getElementById("resetPos");
+const downloadBtn = document.getElementById("downloadBtn");
 
 const VIEWBOX = { width: 420, height: 260 };
 const LABEL_FONT_SIZE = 12;
@@ -266,6 +267,28 @@ function redraw() {
   drawCard(input.value);
 }
 
+function sanitizeFileName(value) {
+  const trimmed = value.trim().toLowerCase();
+  const base = trimmed ? trimmed.replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") : "cardforge-card";
+  return base || "cardforge-card";
+}
+
+function downloadCardSvg() {
+  const serializer = new XMLSerializer();
+  const clone = card.cloneNode(true);
+  clone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+  const svgText = serializer.serializeToString(clone);
+  const svgBlob = new Blob([svgText], { type: "image/svg+xml;charset=utf-8" });
+  const url = URL.createObjectURL(svgBlob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = `${sanitizeFileName(input.value)}.svg`;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  URL.revokeObjectURL(url);
+}
+
 // Drag & Drop.
 let isDragging = false;
 let dragOffset = { dx: 0, dy: 0 };
@@ -408,6 +431,8 @@ resetBtn.addEventListener("click", () => {
   syncSliders();
   redraw();
 });
+
+downloadBtn.addEventListener("click", downloadCardSvg);
 
 syncSliders();
 drawCard("");
