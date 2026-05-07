@@ -38,55 +38,13 @@
             </div>
 
             <div class="field">
-              <label for="fontColorSelect">Font Color</label>
-              <select id="fontColorSelect">
-                <option value="#ffffff">White</option>
-                <option value="#111827">Black</option>
-                <option value="#0f172a">Navy</option>
-                <option value="#fbbf24">Gold</option>
-                <option value="#ec4899">Pink</option>
-              </select>
+              <label for="fontColorInput">Font Color</label>
+              <input id="fontColorInput" type="color" value="#000000" />
             </div>
 
             <div class="field">
-              <span class="field-label">Card Background</span>
-              <div
-                class="color-picker"
-                id="bgPicker"
-                role="listbox"
-                aria-label="Card background colors"
-              >
-                <button
-                  type="button"
-                  class="color-swatch active"
-                  data-bg="blue"
-                  aria-label="Blue background"
-                ></button>
-                <button
-                  type="button"
-                  class="color-swatch"
-                  data-bg="red"
-                  aria-label="Red background"
-                ></button>
-                <button
-                  type="button"
-                  class="color-swatch"
-                  data-bg="yellow"
-                  aria-label="Yellow background"
-                ></button>
-                <button
-                  type="button"
-                  class="color-swatch"
-                  data-bg="green"
-                  aria-label="Green background"
-                ></button>
-                <button
-                  type="button"
-                  class="color-swatch"
-                  data-bg="black"
-                  aria-label="Black background"
-                ></button>
-              </div>
+              <label for="bgColorInput">Card Background</label>
+              <input id="bgColorInput" type="color" value="#d11f00" />
             </div>
 
             <div class="position-controls">
@@ -97,14 +55,20 @@
                 </button>
               </div>
               <div class="slider-row">
-                <label for="sliderX">X</label>
-                <input type="range" id="sliderX" min="0" max="100" value="50" />
-                <span class="slider-val" id="valX">50</span>
+                <label for="sliderX">Horizontal</label>
+                <input type="range" id="sliderX" min="0" max="100" value="0" />
+                <span class="slider-val" id="valX">0</span>
               </div>
               <div class="slider-row">
-                <label for="sliderY">Y</label>
-                <input type="range" id="sliderY" min="0" max="100" value="85" />
-                <span class="slider-val" id="valY">85</span>
+                <label for="sliderY">Vertical</label>
+                <input
+                  type="range"
+                  id="sliderY"
+                  min="0"
+                  max="100"
+                  value="100"
+                />
+                <span class="slider-val" id="valY">100</span>
               </div>
             </div>
           </div>

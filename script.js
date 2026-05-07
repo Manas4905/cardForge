@@ -2,38 +2,33 @@ const SVG_NS = "http://www.w3.org/2000/svg";
 const card = document.getElementById("card");
 const input = document.getElementById("nameInput");
 const fontSelect = document.getElementById("fontSelect");
-const fontColorSelect = document.getElementById("fontColorSelect");
-const bgPicker = document.getElementById("bgPicker");
+const fontColorInput = document.getElementById("fontColorInput");
+const bgColorInput = document.getElementById("bgColorInput");
 const sliderX = document.getElementById("sliderX");
 const sliderY = document.getElementById("sliderY");
 const valX = document.getElementById("valX");
 const valY = document.getElementById("valY");
 const resetBtn = document.getElementById("resetPos");
-const bgButtons = Array.from(document.querySelectorAll(".color-swatch"));
 
 const VIEWBOX = { width: 420, height: 260 };
+const LABEL_FONT_SIZE = 12;
+const LABEL_GAP = 2;
+const BLOCK_PADDING_X = 3;
+const BLOCK_PADDING_Y = 3;
+const HIT_PADDING = 10;
 
 // Safe zone where the cardholder name can move.
 const SAFE = { left: 20, right: 400, top: 110, bottom: 245 };
 
-// Default position as % within the safe zone (0-100).
-const DEFAULT = { x: 20, y: 85 };
+// Default position as % within the safe zone (0-100), anchored left-bottom.
+const DEFAULT = { x: 0, y: 100 };
 
 // Current position state (%).
 let pos = { x: DEFAULT.x, y: DEFAULT.y };
 
-let selectedBg = bgButtons.find((button) => button.classList.contains("active"))
-  ?.dataset.bg || "blue";
+let selectedBgColor = bgColorInput.value;
 let selectedFontFamily = fontSelect.value;
-let selectedFontColor = fontColorSelect.value;
-
-const BG_COLORS = {
-  blue: ["#1a73e8", "#0d47a1"],
-  red: ["#dc2626", "#7f1d1d"],
-  yellow: ["#f4b400", "#a16207"],
-  green: ["#16a34a", "#14532d"],
-  black: ["#1b222fe6", "#000000"],
-};
+let selectedFontColor = fontColorInput.value;
 
 const measurerSvg = document.createElementNS(SVG_NS, "svg");
 measurerSvg.setAttribute("aria-hidden", "true");
@@ -67,21 +62,49 @@ function measureTextWidth(text, fontFamily, fontSize, fontWeight = "400") {
   return measurerText.getComputedTextLength();
 }
 
-// Convert % -> SVG px within the safe zone.
-function pctToCanvas(px_pct, py_pct) {
-  const cx = SAFE.left + (px_pct / 100) * (SAFE.right - SAFE.left);
-  const cy = SAFE.top + (py_pct / 100) * (SAFE.bottom - SAFE.top);
-  return { cx, cy };
+function clamp(value, min, max) {
+  return Math.max(min, Math.min(max, value));
 }
 
-// Convert SVG px -> % within the safe zone.
-function canvasToPct(cx, cy) {
-  const px_pct = ((cx - SAFE.left) / (SAFE.right - SAFE.left)) * 100;
-  const py_pct = ((cy - SAFE.top) / (SAFE.bottom - SAFE.top)) * 100;
+function hexToRgb(hex) {
+  const normalized = hex.replace("#", "");
+  const value =
+    normalized.length === 3
+      ? normalized
+          .split("")
+          .map((char) => char + char)
+          .join("")
+      : normalized;
+  const number = Number.parseInt(value, 16);
   return {
-    x: Math.max(0, Math.min(100, px_pct)),
-    y: Math.max(0, Math.min(100, py_pct)),
+    r: (number >> 16) & 255,
+    g: (number >> 8) & 255,
+    b: number & 255,
   };
+}
+
+function rgbToHex(r, g, b) {
+  return `#${[r, g, b]
+    .map((channel) => channel.toString(16).padStart(2, "0"))
+    .join("")}`;
+}
+
+function mixWithWhite(hex, amount) {
+  const { r, g, b } = hexToRgb(hex);
+  return rgbToHex(
+    Math.round(r + (255 - r) * amount),
+    Math.round(g + (255 - g) * amount),
+    Math.round(b + (255 - b) * amount),
+  );
+}
+
+function mixWithBlack(hex, amount) {
+  const { r, g, b } = hexToRgb(hex);
+  return rgbToHex(
+    Math.round(r * (1 - amount)),
+    Math.round(g * (1 - amount)),
+    Math.round(b * (1 - amount)),
+  );
 }
 
 function getNameLayout(name, fontFamily = selectedFontFamily) {
@@ -101,54 +124,106 @@ function getNameLayout(name, fontFamily = selectedFontFamily) {
   return { displayName, fontSize, textWidth };
 }
 
-function clampNameCenter(cx, cy, textWidth, fontSize, labelFontSize = 12) {
-  const paddingX = 10;
-  const paddingY = 6;
-  const minCx = SAFE.left + textWidth / 2 + paddingX;
-  const maxCx = SAFE.right - textWidth / 2 - paddingX;
-  const labelGap = 2;
-  const minCy = SAFE.top + fontSize + labelGap + labelFontSize + paddingY;
-  const maxCy = SAFE.bottom - paddingY;
-
-  const clampedCx =
-    minCx <= maxCx
-      ? Math.max(minCx, Math.min(maxCx, cx))
-      : (SAFE.left + SAFE.right) / 2;
-  const clampedCy = Math.max(minCy, Math.min(maxCy, cy));
+function getNameBlockLayout(name, fontFamily = selectedFontFamily) {
+  const { displayName, fontSize, textWidth } = getNameLayout(name, fontFamily);
+  const labelWidth = measureTextWidth(
+    "CARDHOLDER NAME:",
+    fontFamily,
+    LABEL_FONT_SIZE,
+    "400",
+  );
+  const blockWidth = Math.max(textWidth, labelWidth);
+  const leftMin = SAFE.left + BLOCK_PADDING_X;
+  const leftMax = SAFE.right - blockWidth - BLOCK_PADDING_X;
+  const baselineMin =
+    SAFE.top + fontSize + LABEL_FONT_SIZE + LABEL_GAP + BLOCK_PADDING_Y;
+  const baselineMax = SAFE.bottom - BLOCK_PADDING_Y;
 
   return {
-    cx: clampedCx,
-    cy: clampedCy,
+    displayName,
+    fontSize,
+    textWidth,
+    labelWidth,
+    blockWidth,
+    leftMin,
+    leftMax,
+    baselineMin,
+    baselineMax,
+  };
+}
+
+function finalizeNameBlock(layout, left, baseline) {
+  const textX = left;
+  const labelY = baseline - layout.fontSize - LABEL_GAP;
+  const highlightTop =
+    Math.min(labelY - LABEL_FONT_SIZE, baseline - layout.fontSize) - 4;
+  const highlightBottom = baseline + 4;
+
+  return {
+    ...layout,
+    left,
+    textX,
+    labelY,
+    baseline,
+    highlightX: left - 4,
+    highlightY: highlightTop,
+    highlightW: layout.blockWidth + 8,
+    highlightH: highlightBottom - highlightTop,
+  };
+}
+
+function getNameBlockFromState(name, fontFamily, state = pos) {
+  const layout = getNameBlockLayout(name, fontFamily);
+  const xRange = Math.max(0, layout.leftMax - layout.leftMin);
+  const yRange = Math.max(0, layout.baselineMax - layout.baselineMin);
+  const left =
+    xRange === 0
+      ? layout.leftMin
+      : layout.leftMin + (clamp(state.x, 0, 100) / 100) * xRange;
+  const baseline =
+    yRange === 0
+      ? layout.baselineMin
+      : layout.baselineMin + (clamp(state.y, 0, 100) / 100) * yRange;
+
+  return finalizeNameBlock(layout, left, baseline);
+}
+
+function stateFromNameBlock(name, fontFamily, left, baseline) {
+  const layout = getNameBlockLayout(name, fontFamily);
+  const xRange = Math.max(0, layout.leftMax - layout.leftMin);
+  const yRange = Math.max(0, layout.baselineMax - layout.baselineMin);
+
+  return {
+    x:
+      xRange === 0
+        ? 0
+        : ((clamp(left, layout.leftMin, layout.leftMax) - layout.leftMin) /
+            xRange) *
+          100,
+    y:
+      yRange === 0
+        ? 0
+        : ((clamp(baseline, layout.baselineMin, layout.baselineMax) -
+            layout.baselineMin) /
+            yRange) *
+          100,
   };
 }
 
 function drawCard(name) {
-  const [bgStart, bgEnd] = BG_COLORS[selectedBg] || BG_COLORS.blue;
-
-  const { displayName, fontSize, textWidth } = getNameLayout(
-    name,
-    selectedFontFamily,
-  );
-  const labelWidth = measureTextWidth(
-    "CARDHOLDER NAME:",
-    selectedFontFamily,
-    12,
-    "400",
-  );
-  const blockWidth = Math.max(textWidth, labelWidth);
-  const rawPos = pctToCanvas(pos.x, pos.y);
-  const { cx, cy } = clampNameCenter(
-    rawPos.cx,
-    rawPos.cy,
-    blockWidth,
+  const bgStart = mixWithWhite(selectedBgColor, 0.08);
+  const bgEnd = mixWithBlack(selectedBgColor, 0.22);
+  const {
+    displayName,
     fontSize,
-  );
-  const textX = cx - textWidth / 2;
-  const labelY = cy - fontSize - 2;
-  const highlightX = textX - 4;
-  const highlightY = cy - fontSize - 4;
-  const highlightW = textWidth + 8;
-  const highlightH = fontSize + 8;
+    textX,
+    labelY,
+    baseline,
+    highlightX,
+    highlightY,
+    highlightW,
+    highlightH,
+  } = getNameBlockFromState(name, selectedFontFamily, pos);
 
   card.innerHTML = `
     <defs>
@@ -169,8 +244,8 @@ function drawCard(name) {
     <line x1="24" y1="62" x2="65" y2="62" stroke="#785a14" stroke-opacity="0.6" stroke-width="1"></line>
     <line x1="24" y1="70" x2="65" y2="70" stroke="#785a14" stroke-opacity="0.6" stroke-width="1"></line>
     <line x1="24" y1="78" x2="65" y2="78" stroke="#785a14" stroke-opacity="0.6" stroke-width="1"></line>
-    <text x="${textX}" y="${labelY}" fill="${selectedFontColor}" font-family="${escapeXml(selectedFontFamily)}" font-size="12" font-weight="400">CARDHOLDER NAME:</text>
-    <text x="${textX}" y="${cy}" fill="${selectedFontColor}" opacity="${name.trim() ? 1 : 0.3}" font-family="${escapeXml(selectedFontFamily)}" font-size="${fontSize}" font-weight="700">${escapeXml(displayName)}</text>
+    <text x="${textX}" y="${labelY}" text-anchor="start" fill="${selectedFontColor}" font-family="${escapeXml(selectedFontFamily)}" font-size="${LABEL_FONT_SIZE}" font-weight="400">CARDHOLDER NAME:</text>
+    <text x="${textX}" y="${baseline}" text-anchor="start" fill="${selectedFontColor}" opacity="${name.trim() ? 1 : 0.3}" font-family="${escapeXml(selectedFontFamily)}" font-size="${fontSize}" font-weight="700">${escapeXml(displayName)}</text>
     ${
       isDragging
         ? `<rect x="${highlightX}" y="${highlightY}" width="${highlightW}" height="${highlightH}" fill="none" stroke="#ffffff" stroke-opacity="0.55" stroke-width="1.5" stroke-dasharray="3 3"></rect>`
@@ -210,29 +285,15 @@ function eventToCanvas(e) {
 
 // Check whether a point is near the current name text.
 function isNearName(cx_hit, cy_hit) {
-  const { fontSize, textWidth } = getNameLayout(
+  const { left, blockWidth, labelY, baseline } = getNameBlockFromState(
     input.value,
     selectedFontFamily,
+    pos,
   );
-  const labelWidth = measureTextWidth(
-    "CARDHOLDER NAME:",
-    selectedFontFamily,
-    12,
-    "400",
-  );
-  const blockWidth = Math.max(textWidth, labelWidth);
-  const rawPos = pctToCanvas(pos.x, pos.y);
-  const { cx, cy } = clampNameCenter(
-    rawPos.cx,
-    rawPos.cy,
-    blockWidth,
-    fontSize,
-  );
-  const tw = textWidth;
-  const hitLeft = cx - tw / 2 - 10;
-  const hitRight = cx + tw / 2 + 10;
-  const hitTop = cy - fontSize - 10;
-  const hitBottom = cy + 10;
+  const hitLeft = left - HIT_PADDING;
+  const hitRight = left + blockWidth + HIT_PADDING;
+  const hitTop = labelY - LABEL_FONT_SIZE - HIT_PADDING;
+  const hitBottom = baseline + HIT_PADDING;
   return (
     cx_hit >= hitLeft &&
     cx_hit <= hitRight &&
@@ -245,8 +306,12 @@ function startDrag(e) {
   const { x, y } = eventToCanvas(e);
   if (isNearName(x, y)) {
     isDragging = true;
-    const { cx, cy } = pctToCanvas(pos.x, pos.y);
-    dragOffset = { dx: x - cx, dy: y - cy };
+    const { left, baseline } = getNameBlockFromState(
+      input.value,
+      selectedFontFamily,
+      pos,
+    );
+    dragOffset = { dx: x - left, dy: y - baseline };
     card.style.cursor = "grabbing";
     e.preventDefault();
     redraw();
@@ -256,23 +321,26 @@ function startDrag(e) {
 function moveDrag(e) {
   if (!isDragging) return;
   const { x, y } = eventToCanvas(e);
-  const rawCx = x - dragOffset.dx;
-  const rawCy = y - dragOffset.dy;
-  const { textWidth, fontSize } = getNameLayout(
+  const rawLeft = x - dragOffset.dx;
+  const rawBaseline = y - dragOffset.dy;
+  const layout = getNameBlockLayout(input.value, selectedFontFamily);
+  const clampedLeft =
+    layout.leftMin <= layout.leftMax
+      ? clamp(rawLeft, layout.leftMin, layout.leftMax)
+      : layout.leftMin;
+  const clampedBaseline = clamp(
+    rawBaseline,
+    layout.baselineMin,
+    layout.baselineMax,
+  );
+  const newState = stateFromNameBlock(
     input.value,
     selectedFontFamily,
+    clampedLeft,
+    clampedBaseline,
   );
-  const labelWidth = measureTextWidth(
-    "CARDHOLDER NAME:",
-    selectedFontFamily,
-    12,
-    "400",
-  );
-  const blockWidth = Math.max(textWidth, labelWidth);
-  const { cx, cy } = clampNameCenter(rawCx, rawCy, blockWidth, fontSize);
-  const newPct = canvasToPct(cx, cy);
-  pos.x = newPct.x;
-  pos.y = newPct.y;
+  pos.x = newState.x;
+  pos.y = newState.y;
   syncSliders();
   redraw();
   e.preventDefault();
@@ -311,18 +379,13 @@ fontSelect.addEventListener("change", () => {
   redraw();
 });
 
-fontColorSelect.addEventListener("change", () => {
-  selectedFontColor = fontColorSelect.value;
+fontColorInput.addEventListener("input", () => {
+  selectedFontColor = fontColorInput.value;
   redraw();
 });
 
-bgPicker.addEventListener("click", (e) => {
-  const button = e.target.closest(".color-swatch");
-  if (!button) return;
-  selectedBg = button.dataset.bg;
-  bgButtons.forEach((swatch) =>
-    swatch.classList.toggle("active", swatch === button),
-  );
+bgColorInput.addEventListener("input", () => {
+  selectedBgColor = bgColorInput.value;
   redraw();
 });
 
