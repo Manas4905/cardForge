@@ -6,9 +6,7 @@
 
 body {
   min-height: 100vh;
-  background:
-    radial-gradient(circle at top, rgba(26, 115, 232, 0.12), transparent 35%),
-    linear-gradient(180deg, #f7f9fc 0%, #eef2f7 100%);
+  background: #f3f4f5;
   font-family: sans-serif;
   padding: 24px;
   color: #1f2937;
